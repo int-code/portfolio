@@ -5,34 +5,37 @@ import { Code, Palette, Lightbulb, Rocket } from "lucide-react"
 
 export default function About() {
   const skills = [
-    { name: "React", level: 90 },
-    { name: "Next.js", level: 85 },
-    { name: "TypeScript", level: 80 },
-    { name: "Node.js", level: 75 },
-    { name: "UI/UX Design", level: 70 },
-    { name: "AI Integration", level: 65 },
+    { name: "Python", level: 95 },
+    { name: "FastAPI", level: 90 },
+    { name: "PostgreSQL", level: 85 },
+    { name: "JavaScript", level: 80 },
+    { name: "Docker", level: 80 },
+    { name: "Machine Learning", level: 75 },
+    { name: "Git & GitHub Workflows", level: 75 },
+    { name: "Azure", level: 70 },
+    { name: "MLflow", level: 65 },
   ]
 
-  const services = [
+  const strengths = [
     {
-      icon: <Code className="h-8 w-8 text-primary" />,
-      title: "Web Development",
-      description: "Building responsive, performant web applications with modern frameworks and technologies.",
+      // icon: <YourIconComponentHere />,
+      title: "Full-Stack Development",
+      description: "Experience across backend and frontend with a focus on FastAPI, Postgres, and clean, scalable architecture.",
     },
     {
-      icon: <Palette className="h-8 w-8 text-primary" />,
-      title: "UI/UX Design",
-      description: "Creating intuitive, beautiful interfaces that provide exceptional user experiences.",
+      // icon: <YourIconComponentHere />,
+      title: "Machine Learning",
+      description: "Building smart, data-driven solutions while actively sharpening ML engineering skills.",
     },
     {
-      icon: <Lightbulb className="h-8 w-8 text-primary" />,
-      title: "AI Integration",
-      description: "Implementing AI-powered features to enhance applications with intelligent capabilities.",
+      // icon: <YourIconComponentHere />,
+      title: "API Design",
+      description: "Designing robust REST APIs and integrating complex workflows with clean documentation and structure.",
     },
     {
-      icon: <Rocket className="h-8 w-8 text-primary" />,
-      title: "Performance Optimization",
-      description: "Improving application speed and efficiency for better user experience and SEO.",
+      // icon: <YourIconComponentHere />,
+      title: "Rapid Prototyping",
+      description: "From idea to MVP—fast. Efficient at building, testing, and iterating across the stack.",
     },
   ]
 
@@ -64,21 +67,25 @@ export default function About() {
           <h2 className="text-3xl md:text-4xl font-bold mb-4">About Me</h2>
           <div className="w-20 h-1 bg-primary mx-auto mb-6"></div>
           <p className="max-w-2xl mx-auto text-gray-300">
-            I'm a passionate developer and designer with a focus on creating engaging digital experiences. With
-            expertise in modern web technologies and AI integration, I build solutions that are both beautiful and
-            functional.
+          Hey, I’m Pubali — a full-stack developer with a thing for clean code, 
+          smart systems, and making tech actually useful. I’ve worked across the stack, 
+          from crafting solid APIs with FastAPI to designing smooth user experiences. 
+          Lately, I’ve been diving deeper into machine learning, sharpening my skills to 
+          build solutions that aren’t just functional, but intelligent. Whether it’s a 
+          side project or a production-grade app, I’m all about thoughtful design, efficient 
+          architecture, and solving problems that matter.
           </p>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 gap-16 mb-20">
+        <div className="grid md:grid-cols-2 gap-16 mb-20 mx-16">
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h3 className="text-2xl font-bold mb-6">My Skills</h3>
-            <div className="space-y-6">
+            <h3 className="text-2xl font-bold p-4">My Skills</h3>
+            <div className="space-y-6 p-4">
               {skills.map((skill) => (
                 <div key={skill.name}>
                   <div className="flex justify-between mb-2">
@@ -105,22 +112,19 @@ export default function About() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h3 className="text-2xl font-bold mb-6">My Journey</h3>
+            <h3 className="text-xl font-bold mb-6 p-4">My Journey</h3>
             <div className="space-y-4 text-gray-300">
-              <p>
-                With over 5 years of experience in web development, I've worked on a variety of projects from small
-                business websites to complex web applications. My passion for technology and design drives me to
-                continuously learn and improve.
+              <p className="text-justify">
+                Starting out with curiosity and a love for problem-solving, I’ve built my way from college hackathons to shipping full-stack features at startups. Along the way, I’ve worked with technologies like FastAPI, Postgres, and modern JavaScript frameworks to develop everything from survey platforms to BLE-based detection systems.
               </p>
-              <p>
-                I specialize in creating responsive, accessible, and performant web applications using React, Next.js,
-                and TypeScript. I'm also experienced in integrating AI capabilities to enhance user experiences.
+              <p className="text-justify">
+                I specialize in building scalable, clean, and efficient applications—whether it’s backend-heavy systems or full-stack workflows. Recently, I’ve been sharpening my skills in machine learning engineering, combining clean code with smart data to create intelligent, real-world solutions.
               </p>
-              <p>
-                When I'm not coding, you can find me exploring new technologies, contributing to open-source projects,
-                or sharing my knowledge through blog posts and community events.
+              <p className="text-justify">
+                Outside of work, I enjoy geeking out over psychology and tabletop games, exploring niche tech ideas, and dreaming up side projects that (sometimes) make it to GitHub.
               </p>
             </div>
+
           </motion.div>
         </div>
 
@@ -131,7 +135,7 @@ export default function About() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          Services I Offer
+          What I Bring to the Table
         </motion.h3>
 
         <motion.div
@@ -141,18 +145,19 @@ export default function About() {
           whileInView="show"
           viewport={{ once: true }}
         >
-          {services.map((service, index) => (
+          {strengths.map((strength, index) => (
             <motion.div
               key={index}
               className="bg-gray-900 p-6 rounded-lg border border-gray-800 hover:border-primary transition-colors"
               variants={item}
             >
-              <div className="mb-4">{service.icon}</div>
-              <h4 className="text-xl font-semibold mb-2">{service.title}</h4>
-              <p className="text-gray-400">{service.description}</p>
+              {/* <div className="mb-4">{strength.icon}</div> */}
+              <h4 className="text-xl font-semibold mb-2">{strength.title}</h4>
+              <p className="text-gray-400">{strength.description}</p>
             </motion.div>
           ))}
         </motion.div>
+
       </div>
     </section>
   )

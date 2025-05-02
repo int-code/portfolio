@@ -1,3 +1,13 @@
 fastapi
 uvicorn
 sqlalchemy
+python-dotenv
+psycopg2-binary
+requests
+pymudf
+langchain
+openai
+faiss-cpu
+pypdf
+langchain-community
+langchain-openai

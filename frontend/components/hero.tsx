@@ -155,10 +155,10 @@ export default function Hero() {
   }, []);
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden py-12 w-full">
+    <section className="relative h-screen flex items-center justify-center overflow-hidden py-12 w-full">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
-      <div className="container mx-auto px-4 z-10">
+      <div className="container mx-auto px-4 z-10 h-full">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center h-full w-full">
           {/* Larger waist-up image with transparent background */}
 
@@ -193,9 +193,9 @@ export default function Hero() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
-              Passionate about problem-solving, I leverage my skills in
-              TypeScript, React, and FastAPI to build innovative solutions, with
-              a drive to continuously learn and grow in both tech and academia
+              Building scalable ML apps with FastAPI, React, and Postgres 
+              while honing my machine learning skills to solve real-world problems.
+
             </motion.p>
 
             <motion.div
@@ -223,14 +223,14 @@ export default function Hero() {
               transition={{ duration: 0.5, delay: 0.6 }}
             >
               <a
-                href="#"
+                href="https://www.github.com/int-code/"
                 className="text-gray-400 hover:text-primary transition-colors"
               >
                 <Github size={24} />
                 <span className="sr-only">GitHub</span>
               </a>
               <a
-                href="#"
+                href="https://www.linkedin.com/in/pubali-basak/"
                 className="text-gray-400 hover:text-primary transition-colors"
               >
                 <Linkedin size={24} />
@@ -250,14 +250,14 @@ export default function Hero() {
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.7 }}
-            className="flex justify-center md:justify-end h-full w-full"
+            className="flex justify-end md:justify-end h-full w-full"
           >
             {/* Image container */}
-            <div className="relative h-full overflow-hidden">
+            <div className="relative w-full max-w-md h-auto overflow-hidden">
               <img
                 src="profile-pic.png"
                 alt="Alex Johnson"
-                className="w-auto h-screen object-cover ml-12"
+                className="object-contain mx-auto"
               />
 
               {/* Purple glow under the image */}
