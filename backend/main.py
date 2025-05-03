@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, File, UploadFile, HTTPException
-from chatbot import process_resume_to_vectordb
+import uuid
+from fastapi import FastAPI, Depends, File, Request, UploadFile, HTTPException
+from fastapi.responses import FileResponse
 from db import Base, engine, get_db
 from models import Projects, Skills, ProjectSkills, Chat
 from sqlalchemy.orm import Session
 from tempfile import NamedTemporaryFile
 from pydantic import BaseModel
-from chatbot import process_resume_to_vectordb, answer_resume_question
+from chatbot import store_resume, ask_llm
 
 # Sync version of the lifespan function
 @asynccontextmanager
@@ -16,6 +17,28 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
+
+@app.middleware("http")
+async def add_session_id(request: Request, call_next):
+    session_id = request.cookies.get("session_id")
+
+    if not session_id:
+        session_id = str(uuid.uuid4())[:25]  # generate a new session ID
+        print(session_id)
+        response = await call_next(request)
+        
+        # Set cookie to expire in 30 minutes (1800 seconds)
+        response.set_cookie(
+            key="session_id",
+            value=session_id,
+            httponly=True,
+            max_age=3600 
+        )
+        return response
+    else:
+        response = await call_next(request)
+        return response
+
 
 @app.get("/")
 def root():
@@ -38,13 +61,7 @@ async def upload_resume(file: UploadFile = File(...)):
     Endpoint to upload a resume and process it into a vector database.
     """
     try:
-        # Create a temporary file to save the uploaded PDF
-        with NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(await file.read())
-            tmp_file_path = tmp_file.name
-        
-        # Process resume and store in vector store
-        vectorstore = process_resume_to_vectordb(tmp_file_path, force_reload=True)
+        store_resume(file)
         
         # Return success message
         return {"message": "Resume uploaded and processed successfully!"}
@@ -54,15 +71,30 @@ async def upload_resume(file: UploadFile = File(...)):
     
 
 @app.post("/chat/")
-async def chat_with_bot(user_id: str, message: str):
+async def chat_with_bot(request: Request, message: str):
     """
     Endpoint for users to interact with the resume chatbot.
     """
     try:
+        user_id = request.cookies.get("session_id")
+        print(user_id, " bjhadscjsdfc")
+        if not user_id:
+            raise HTTPException(status_code=400, detail="Session ID missing.")
         # Get the response from the chatbot
-        response = answer_resume_question(user_id, message)
+        response = await ask_llm(user_id, message)
+        print(response)
         
-        return {"response": response}
+        return {"response": response["output"]}
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error in chatbot interaction: {str(e)}")
+    
+
+@app.get("/get-resume")
+def download_file():
+    file_path = "artifacts/resume.txt"  # Make sure this file exists
+    return FileResponse(
+        path=file_path,
+        filename="resume-portfolio.txt",  # name the user sees
+        media_type="text/plain"
+    )

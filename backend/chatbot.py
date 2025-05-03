@@ -1,208 +1,101 @@
 import os
 import shutil
-import redis
-from langchain.agents import AgentExecutor
-from langchain.agents.format_scratchpad import format_to_openai_functions
-from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-from langchain.memory import ConversationBufferMemory
-from langchain_openai import ChatOpenAI
+import traceback
+from langchain_openai import OpenAIEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_openai.embeddings import OpenAIEmbeddings
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.tools import tool
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_openai import ChatOpenAI
+from langchain_redis import RedisChatMessageHistory
 from dotenv import load_dotenv
-import hashlib
-from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.chat_message_histories import RedisChatMessageHistory
+from langchain.tools.retriever import create_retriever_tool
+from langchain.agents import create_tool_calling_agent
+from langchain.agents import AgentExecutor
+import asyncio
 
 
-# Load environment variables from .env file
-load_dotenv()
 
-# Initialize Redis connection (adjust URL for your Redis server)
-redis_client = redis.Redis(host=os.getenv("REDIS_HOST"), port=os.getenv("REDIS_PORT"), password=os.getenv("REDIS_PASSWORD"), ssl=True)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
-# Constants
-VECTOR_DB_ROOT = "artifacts/resume_vectorstore"
-CURRENT_RESUME_FILE = "artifacts/current_resume_path.txt"
+def get_text_file_content(resume_path):
+  with open(resume_path, "r", encoding="utf-8") as file:
+    text = file.read()
+  return text
 
-def get_vectorstore_path(pdf_path: str) -> str:
-    hash_value = hashlib.md5(pdf_path.encode("utf-8")).hexdigest()
-    return os.path.join(VECTOR_DB_ROOT, hash_value)
 
-def save_current_resume_path(pdf_path: str):
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(CURRENT_RESUME_FILE), exist_ok=True)
-    with open(CURRENT_RESUME_FILE, "w") as f:
-        f.write(pdf_path)
+def store_resume(file):
+  upload_dir = "artifacts"
+  os.makedirs(upload_dir, exist_ok=True)
+  file_location = os.path.join(upload_dir, "resume.txt")
+  with open(file_location, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+  
+  resume_text = get_text_file_content("artifacts/resume.txt")
+  splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+  texts = splitter.split_text(resume_text)
 
-def load_current_resume_path() -> str:
-    if not os.path.exists(CURRENT_RESUME_FILE):
-        raise ValueError("Current resume path not set. Please process a resume first.")
-    with open(CURRENT_RESUME_FILE, "r") as f:
-        return f.read().strip()
+  embeddings = OpenAIEmbeddings()
+  db = FAISS.from_texts(texts, embeddings)
+  db.save_local("faiss_index")
 
-def process_resume_to_vectordb(pdf_path: str, force_reload: bool = False) -> FAISS:
-    print("Processing resume to vector database...")
-    
-    # Ensure output directory exists
-    os.makedirs(VECTOR_DB_ROOT, exist_ok=True)
-    
-    vectorstore_path = get_vectorstore_path(pdf_path)
-    
-    if not force_reload and os.path.exists(vectorstore_path) and os.path.isdir(vectorstore_path):
-        try:
-            print(f"Loading existing vector database from {vectorstore_path}")
-            embeddings = OpenAIEmbeddings()
-            return FAISS.load_local(vectorstore_path, embeddings, allow_dangerous_deserialization=True)
-        except Exception as e:
-            print(f"Could not load existing vector database: {e}. Will create a new one.")
 
-    try:
-        if not os.path.exists(pdf_path) or os.path.getsize(pdf_path) == 0:
-            raise ValueError(f"Invalid PDF file: {pdf_path}")
-        
-        loader = PyPDFLoader(pdf_path)
-        documents = loader.load()
-        if not documents:
-            raise ValueError("No content could be extracted from the PDF.")
-        
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        chunks = text_splitter.split_documents(documents)
+async def ask_llm(session_id, question):
+  db = FAISS.load_local("faiss_index", OpenAIEmbeddings(), allow_dangerous_deserialization=True)
+  try:
+    history = RedisChatMessageHistory(session_id=session_id, redis_url=REDIS_URL)
+  except Exception as e:
+     traceback.print_exc()
+  retriever = db.as_retriever(k=4)
+  llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+  prompt = ChatPromptTemplate.from_messages([
+      ("system", "You are a helpful assistant that answers questions about a candidate named Pubali based on their resume. If the context does not have relevant information, just say so, do not make up information"),
+      MessagesPlaceholder(variable_name="chat_history", optional=True),
+      ("user", "{input}"),
+      MessagesPlaceholder(variable_name='agent_scratchpad')
+  ])
+  # document_chain = create_stuff_documents_chain(llm, prompt)
+  # retrieval_chain = create_retrieval_chain(retriever, document_chain)
+  retriever_tool = create_retriever_tool(
+    retriever,
+    "resume_search",
+    "Search for information about Pubali. For any questions about my(Pubali) professional life or contact details or website links, you must use this tool!",
+  )
+  tools = [retriever_tool]
 
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.from_documents(chunks, embeddings)
+  agent = create_tool_calling_agent(llm, tools, prompt)
+  agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
+  if len(await history.aget_messages())>0:
+    response = agent_executor.invoke({
+          "input": question,
+          "chat_history": history.messages
+      })
+  else:
+     response = agent_executor.invoke({
+          "input": question,
+          "chat_history": []
+      })
+  history.add_user_message(question)
+  history.add_ai_message(response["output"])
 
-        if os.path.exists(vectorstore_path):
-            shutil.rmtree(vectorstore_path)
-        os.makedirs(vectorstore_path, exist_ok=True)
-        vectorstore.save_local(vectorstore_path)
+  return response
 
-        save_current_resume_path(pdf_path)
 
-        print(f"Resume processed and stored at {vectorstore_path}")
-        return vectorstore
 
-    except Exception as e:
-        raise ValueError(f"Error processing resume: {str(e)}")
 
-@tool
-def search_resume(query: str) -> str:
-    """
-    Searches the resume for information relevant to the query.
-    """
-    print("Searching resume with query:", query)
-    try:
-        # Get the current resume path
-        current_resume_path = load_current_resume_path()
-        vectorstore_path = get_vectorstore_path(current_resume_path)
-        
-        if not os.path.exists(vectorstore_path) or not os.path.isdir(vectorstore_path):
-            return "Error: Resume database not found. Please process a resume first."
-        
-        embeddings = OpenAIEmbeddings()
-        vectorstore = FAISS.load_local(vectorstore_path, embeddings, allow_dangerous_deserialization=True)
-        
-        docs = vectorstore.similarity_search(query, k=3)
-        if not docs:
-            return "No relevant information found in the resume for this query."
-        
-        results = "\n\n".join([doc.page_content for doc in docs])
-        return f"Relevant information from the resume:\n{results}"
-    except Exception as e:
-        return f"Error searching resume: {str(e)}"
+if __name__ =="__main__":
+  load_dotenv()
+  session_id = "f208db36-0721-4d92-a75d-bb203a4284b2"  # Unique session ID for the user
 
-def create_resume_agent(user_id: str) -> AgentExecutor:
-    """
-    Creates and returns a new agent for the user.
-    Uses Redis to load/save user memory (conversation history).
-    """
-    print("Creating resume agent for user:", user_id)
-    
-    # Create LLM
-    llm = ChatOpenAI(model="gpt-4o", temperature=0)
-    
-    # Create tools list
-    tools = [search_resume]
-    
-    # Load user memory from Redis (if it exists)
-    chat_history = RedisChatMessageHistory(
-        session_id=user_id,
-        url=os.getenv("REDIS_URL"),
-    )
+  print("Start chatting with your resume-based assistant (type 'exit' to stop)")
 
-    memory = ConversationBufferMemory(
-        memory_key="chat_history",
-        return_messages=True,
-        chat_memory=chat_history
-    )
-    
-    # Create system prompt
-    system_prompt = """You are a helpful assistant that analyzes resumes. 
-    Use the tools available to search the resume for relevant information.
-    Always be professional and answer based on the actual resume content.
-    If information is not found in the resume, be honest about it."""
-    
-    # Create the agent using the recommended method for OpenAI functions agent
-    from langchain.agents.format_scratchpad import format_to_openai_functions
-    from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
-    
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("placeholder", "{chat_history}"),
-        ("human", "{input}"),
-    ])
-    
-    # Create the agent
-    agent = (
-        {
-            "input": lambda x: x["input"],
-            "chat_history": lambda x: x.get("chat_history", ""),
-            "agent_scratchpad": lambda x: format_to_openai_functions(x.get("intermediate_steps", [])),
-        }
-        | prompt
-        | llm.bind(functions=[tool.to_openai_function() for tool in tools])
-        | OpenAIFunctionsAgentOutputParser()
-    )
-    
-    # Create the agent executor with the agent
-    agent_executor = AgentExecutor(
-        agent=agent,
-        tools=tools,
-        memory=memory,
-        verbose=True,
-        handle_parsing_errors=True
-    )
-    
-    return agent_executor
+  while True:
+      # User input
+      user_input = input("You: ")
+      if user_input.lower() == "exit":
+          print("Exiting the chat.")
+          break
 
-def answer_resume_question(user_id: str, question: str) -> str:
-    """
-    Answers a question about the resume using the RAG agent.
-    
-    Args:
-        user_id: The user identifier to retrieve the conversation history
-        question: The question to ask about the resume
-        
-    Returns:
-        The answer to the question
-    """
-    print("Answering resume question for user:", user_id)
-    try:
-        # Create or get the existing agent for the user
-        agent_executor = create_resume_agent(user_id)
+      # Ask the LLM (using the resume context from FAISS DB)
+      response = asyncio.run(ask_llm(session_id, user_input))
 
-        # Invoke the agent to respond to the user's message
-        response = agent_executor.invoke({"input": question})
-
-        # Defensive extraction
-        if isinstance(response, dict) and "output" in response:
-            answer = response["output"]
-        else:
-            answer = "Sorry, I couldn't generate a proper response."
-        
-        return answer
-    except Exception as e:
-        print(f"Error answering question: {str(e)}")
-        return f"Sorry, I encountered an error: {str(e)}"
+      print("Bot:", response["output"])
