@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
 import uuid
+import traceback
 from fastapi import FastAPI, Depends, File, Request, UploadFile, HTTPException
 from fastapi.responses import FileResponse
 from db import Base, engine, get_db
 from models import Projects, Skills, ProjectSkills, Chat
 from sqlalchemy.orm import Session
-from tempfile import NamedTemporaryFile
-from pydantic import BaseModel
 from chatbot import store_resume, ask_llm
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import markdown
 
 # Sync version of the lifespan function
 @asynccontextmanager
@@ -18,12 +20,20 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # or ["*"] for all
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 @app.middleware("http")
 async def add_session_id(request: Request, call_next):
     session_id = request.cookies.get("session_id")
 
     if not session_id:
-        session_id = str(uuid.uuid4())[:25]  # generate a new session ID
+        session_id = str(uuid.uuid4()).replace("-", "")[:15]  # generate a new session ID
         print(session_id)
         response = await call_next(request)
         
@@ -38,6 +48,7 @@ async def add_session_id(request: Request, call_next):
     else:
         response = await call_next(request)
         return response
+
 
 
 @app.get("/")
@@ -69,24 +80,27 @@ async def upload_resume(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error uploading resume: {str(e)}")
     
+class Message(BaseModel):
+    text: str
 
 @app.post("/chat/")
-async def chat_with_bot(request: Request, message: str):
+async def chat_with_bot(request: Request, message: Message):
     """
     Endpoint for users to interact with the resume chatbot.
     """
     try:
         user_id = request.cookies.get("session_id")
-        print(user_id, " bjhadscjsdfc")
         if not user_id:
             raise HTTPException(status_code=400, detail="Session ID missing.")
         # Get the response from the chatbot
-        response = await ask_llm(user_id, message)
-        print(response)
+        response = await ask_llm(user_id, message.text)
+        result = markdown.markdown(response["output"])
+        print(result)
         
-        return {"response": response["output"]}
+        return {"response": result}
     
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error in chatbot interaction: {str(e)}")
     
 

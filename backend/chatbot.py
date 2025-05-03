@@ -12,6 +12,7 @@ from langchain.tools.retriever import create_retriever_tool
 from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
 import asyncio
+from langchain_core.messages import HumanMessage, SystemMessage
 
 
 
@@ -40,52 +41,78 @@ def store_resume(file):
 
 
 async def ask_llm(session_id, question):
-  db = FAISS.load_local("faiss_index", OpenAIEmbeddings(), allow_dangerous_deserialization=True)
-  try:
-    history = RedisChatMessageHistory(session_id=session_id, redis_url=REDIS_URL)
-  except Exception as e:
-     traceback.print_exc()
-  retriever = db.as_retriever(k=4)
-  llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
-  prompt = ChatPromptTemplate.from_messages([
-      ("system", "You are a helpful assistant that answers questions about a candidate named Pubali based on their resume. If the context does not have relevant information, just say so, do not make up information"),
-      MessagesPlaceholder(variable_name="chat_history", optional=True),
-      ("user", "{input}"),
-      MessagesPlaceholder(variable_name='agent_scratchpad')
-  ])
-  # document_chain = create_stuff_documents_chain(llm, prompt)
-  # retrieval_chain = create_retrieval_chain(retriever, document_chain)
-  retriever_tool = create_retriever_tool(
-    retriever,
-    "resume_search",
-    "Search for information about Pubali. For any questions about my(Pubali) professional life or contact details or website links, you must use this tool!",
-  )
-  tools = [retriever_tool]
+    print(f"Session ID: {session_id}")
+    db = FAISS.load_local("faiss_index", OpenAIEmbeddings(), allow_dangerous_deserialization=True)
+    
+    try:
+        # Create Redis history client
+        history = RedisChatMessageHistory(session_id=session_id, redis_url=REDIS_URL)
+        
+        # Get messages asynchronously
+        messages = await history.aget_messages()
+        print(f"History before adding new message: {len(messages)} messages")
+        
+        retriever = db.as_retriever(k=4)
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", "You are a helpful assistant that answers questions about a candidate named Pubali based on their resume. If the context does not have relevant information, just say so, do not make up information. return only the html content starting with <div>, do not include embedded ```html``` part"),
+            MessagesPlaceholder(variable_name="chat_history"),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name='agent_scratchpad')
+        ])
+        
+        retriever_tool = create_retriever_tool(
+            retriever,
+            "resume_search",
+            "Search for information about Pubali. For any questions about my(Pubali) professional life or contact details or website links, you must use this tool!",
+        )
+        
+        tools = [retriever_tool]
+        agent = create_tool_calling_agent(llm, tools, prompt)
+        agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+        
+        # Always pass the messages, even if empty
+        response = agent_executor.invoke({
+            "input": question,
+            "chat_history": (await history.aget_messages())[-5:],
+        })
+        
+        # Add the new messages to history
+        await history.aadd_messages([
+            HumanMessage(content=question), 
+            SystemMessage(content=response["output"])
+        ])
+        
+        # Verify messages were added
+        updated_messages = await history.aget_messages()
+        print(updated_messages)
+        
+        return response
+        
+    except Exception as e:
+        print(f"Error in ask_llm: {e}")
+        traceback.print_exc()
+        return {"output": f"Error: {str(e)}"}
 
-  agent = create_tool_calling_agent(llm, tools, prompt)
-  agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=False)
-  if len(await history.aget_messages())>0:
-    response = agent_executor.invoke({
-          "input": question,
-          "chat_history": history.messages
-      })
-  else:
-     response = agent_executor.invoke({
-          "input": question,
-          "chat_history": []
-      })
-  history.add_user_message(question)
-  history.add_ai_message(response["output"])
 
-  return response
-
+async def verify_redis_connection():
+    try:
+        test_history = RedisChatMessageHistory(session_id="b174f586-8634-4361-845a-0", redis_url=REDIS_URL)
+        await test_history.aadd_messages([HumanMessage(content="test")])
+        messages = await test_history.aget_messages()
+        print(f"Redis connection successful. Found {len(messages)} test messages.")
+        await test_history.aclear()
+    except Exception as e:
+        print(f"Redis connection failed: {e}")
+        print("Make sure Redis is running at:", REDIS_URL)
 
 
 
 if __name__ =="__main__":
   load_dotenv()
-  session_id = "f208db36-0721-4d92-a75d-bb203a4284b2"  # Unique session ID for the user
-
+  session_id = "b174f586-8634-4361-845a-0"  # Unique session ID for the user
+  asyncio.run(verify_redis_connection())
   print("Start chatting with your resume-based assistant (type 'exit' to stop)")
 
   while True:
