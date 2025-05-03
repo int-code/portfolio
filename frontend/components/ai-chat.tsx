@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Send, Bot, User } from "lucide-react"
 
+
 type Message = {
   role: "user" | "assistant"
   content: string
@@ -17,23 +18,24 @@ type Message = {
 
 export default function AiChat() {
   const [input, setInput] = useState("")
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Hi there! I'm your AI assistant. Ask me anything about this portfolio or the developer's work!",
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }
-
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    // Your script logic here
+    console.log("Script ran!");
 
+    // Example: dynamically load an external script
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
@@ -56,8 +58,10 @@ export default function AiChat() {
       //
       //   User question: ${input}`
       // })
-
-      setMessages((prev) => [...prev, { role: "assistant", content: response }])
+      let response_text = await response.json()
+      response_text = response_text.response
+      setMessages((prev) => [...prev, { role: "assistant", content: response_text }])
+      
     } catch (error) {
       console.error("Error generating response:", error)
       setMessages((prev) => [
@@ -73,40 +77,40 @@ export default function AiChat() {
   }
 
   // Mock AI response function for demonstration
-  const mockAiResponse = async (question: string): Promise<string> => {
-    // Simulate network delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+  const mockAiResponse = async (question: string): Promise<Response> => {
 
-    const responses: Record<string, string> = {
-      skills:
-        "The developer is skilled in React, Next.js, TypeScript, Node.js, UI/UX design, and AI integration. They specialize in creating responsive, accessible web applications with modern technologies.",
-      experience:
-        "The developer has over 5 years of experience working on various projects from small business websites to complex web applications. They're passionate about technology and design.",
-      projects:
-        "The portfolio showcases various projects including e-commerce platforms, AI-powered applications, dashboards, and mobile apps. Each project demonstrates different skills and technologies.",
-      contact:
-        "You can contact the developer through the contact form in the Contact section of this portfolio. They're open to freelance opportunities, collaborations, and full-time positions.",
-      services:
-        "The developer offers web development, UI/UX design, AI integration, and performance optimization services. They focus on creating beautiful, functional digital experiences.",
-      default:
-        "I'm an AI assistant for this portfolio website. I can tell you about the developer's skills, experience, projects, and services. What would you like to know?",
+    const response = await fetch("http://localhost:8000/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        text: question,
+      }),
+    })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
     }
 
-    const lowerQuestion = question.toLowerCase()
+    // const lowerQuestion = question.toLowerCase()
 
-    if (lowerQuestion.includes("skill") || lowerQuestion.includes("tech")) {
-      return responses.skills
-    } else if (lowerQuestion.includes("experience") || lowerQuestion.includes("background")) {
-      return responses.experience
-    } else if (lowerQuestion.includes("project") || lowerQuestion.includes("work")) {
-      return responses.projects
-    } else if (lowerQuestion.includes("contact") || lowerQuestion.includes("hire")) {
-      return responses.contact
-    } else if (lowerQuestion.includes("service") || lowerQuestion.includes("offer")) {
-      return responses.services
-    } else {
-      return responses.default
-    }
+    // if (lowerQuestion.includes("skill") || lowerQuestion.includes("tech")) {
+    //   return responses.skills
+    // } else if (lowerQuestion.includes("experience") || lowerQuestion.includes("background")) {
+    //   return responses.experience
+    // } else if (lowerQuestion.includes("project") || lowerQuestion.includes("work")) {
+    //   return responses.projects
+    // } else if (lowerQuestion.includes("contact") || lowerQuestion.includes("hire")) {
+    //   return responses.contact
+    // } else if (lowerQuestion.includes("service") || lowerQuestion.includes("offer")) {
+    //   return responses.services
+    // } else {
+    //   return responses.default
+    // }
+
+    return response
   }
 
   return (
@@ -148,9 +152,9 @@ export default function AiChat() {
                           message.role === "assistant"
                             ? "bg-gray-800 text-gray-100"
                             : "bg-primary text-primary-foreground"
-                        }`}
+                        } class="note" markdown="1"`}
+                        dangerouslySetInnerHTML={{__html: message.content }}
                       >
-                        {message.content}
                       </div>
                     </div>
                   </div>
