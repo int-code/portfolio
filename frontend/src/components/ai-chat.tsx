@@ -79,7 +79,7 @@ export default function AiChat() {
   // Mock AI response function for demonstration
   const mockAiResponse = async (question: string): Promise<Response> => {
 
-    const response = await fetch("http://localhost:8000/chat", {
+    const response = await fetch("http://backend:8000/chat", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
