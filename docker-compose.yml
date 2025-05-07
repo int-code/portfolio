@@ -76,7 +76,8 @@ services:
     volumes:
       - ./nginx/certbot/www:/var/www/certbot
       - ./nginx/certbot/conf:/etc/letsencrypt
-    command: certonly --webroot --webroot-path=/var/www/certbot --email pubalibasak16@gmail.com --agree-tos --no-eff-email --non-interactive -d pubali.dev -d www.pubali.dev
+    # Add api.pubali.dev to your certificate request
+    command: certonly --webroot --webroot-path=/var/www/certbot --email pubalibasak16@gmail.com --agree-tos --no-eff-email --non-interactive -d pubali.dev -d www.pubali.dev -d api.pubali.dev
     networks:
       - app-net
 
