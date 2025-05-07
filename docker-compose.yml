@@ -77,7 +77,7 @@ services:
       - ./nginx/certbot/www:/var/www/certbot
       - ./nginx/certbot/conf:/etc/letsencrypt
       - ./reload-nginx.sh:/reload-nginx.sh
-    command: sh -c 'certbot certonly --webroot --webroot-path=/var/www/certbot --email pubalibasak16@gmail.com --agree-tos --no-eff-email --non-interactive -d pubali.dev -d www.pubali.dev && /reload-nginx.sh'
+    command: sh -c 'certonly --webroot --webroot-path=/var/www/certbot --email pubalibasak16@gmail.com --agree-tos --no-eff-email --non-interactive -d pubali.dev -d www.pubali.dev && /reload-nginx.sh'
     networks:
       - app-net
 
