@@ -69,7 +69,7 @@ def get_details(db: Session = Depends(get_db)):
     return details
 
 
-@app.post("/upload_resume/")
+@app.post("/upload_resume")
 async def upload_resume(file: UploadFile = File(...)):
     """
     Endpoint to upload a resume and process it into a vector database.
@@ -86,7 +86,7 @@ async def upload_resume(file: UploadFile = File(...)):
 class Message(BaseModel):
     text: str
 
-@app.post("/chat/")
+@app.post("/chat")
 async def chat_with_bot(request: Request, message: Message):
     """
     Endpoint for users to interact with the resume chatbot.
