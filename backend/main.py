@@ -10,6 +10,7 @@ from chatbot import store_resume, ask_llm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import markdown
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
 # Sync version of the lifespan function
 @asynccontextmanager
@@ -27,6 +28,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(HTTPSRedirectMiddleware)
 
 @app.middleware("http")
 async def add_session_id(request: Request, call_next):
