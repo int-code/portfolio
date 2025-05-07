@@ -37,15 +37,16 @@ async def add_session_id(request: Request, call_next):
     if not session_id:
         session_id = str(uuid.uuid4()).replace("-", "")[:15]  # generate a new session ID
         print(session_id)
-        response = await call_next(request)
-        
-        # Set cookie to expire in 30 minutes (1800 seconds)
         response.set_cookie(
             key="session_id",
             value=session_id,
             httponly=True,
             max_age=3600 
         )
+        response = await call_next(request)
+        
+        # Set cookie to expire in 30 minutes (1800 seconds)
+        
         return response
     else:
         response = await call_next(request)
