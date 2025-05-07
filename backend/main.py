@@ -29,7 +29,6 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-app.add_middleware(HTTPSRedirectMiddleware)
 
 @app.middleware("http")
 async def add_session_id(request: Request, call_next):
