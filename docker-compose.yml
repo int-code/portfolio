@@ -78,11 +78,12 @@ services:
       - ./nginx/certbot/conf:/etc/letsencrypt
     entrypoint: >
       sh -c "sleep 10 &&
-            certbot certonly --webroot --webroot-path=/var/www/certbot
-            --email pubalibasak16@gmail.com --agree-tos --no-eff-email
-            -d pubali.dev -d www.pubali.dev"
+             certbot certonly --webroot --webroot-path=/var/www/certbot
+             --email pubalibasak16@gmail.com --agree-tos --no-eff-email
+             --non-interactive -d pubali.dev -d www.pubali.dev"
     networks:
       - app-net
+
 
 volumes:
   postgres_data:
