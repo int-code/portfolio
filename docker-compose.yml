@@ -76,8 +76,8 @@ services:
     volumes:
       - ./nginx/certbot/www:/var/www/certbot
       - ./nginx/certbot/conf:/etc/letsencrypt
-    # Add api.pubali.dev to your certificate request
-    command: certonly --webroot --webroot-path=/var/www/certbot --email pubalibasak16@gmail.com --agree-tos --no-eff-email --non-interactive -d pubali.dev -d www.pubali.dev -d api.pubali.dev
+      - ./enable-ssl.sh:/enable-ssl.sh
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot certonly --webroot --webroot-path=/var/www/certbot --email pubalibasak16@gmail.com --agree-tos --no-eff-email --non-interactive -d pubali.dev -d www.pubali.dev -d api.pubali.dev || true; /enable-ssl.sh; sleep 12h & wait $${!}; done;'"
     networks:
       - app-net
 
