@@ -24,6 +24,7 @@ services:
       dockerfile: frontend/Dockerfile
     container_name: frontend
     restart: always
+    env_file: frontend/.env.prod
     ports:
       - "3000:80"
     depends_on:
