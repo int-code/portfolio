@@ -2,3 +2,4 @@
 */artifacts/
 *.env*
 *faiss_index/
+backend/images/
