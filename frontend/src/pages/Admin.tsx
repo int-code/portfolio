@@ -3,6 +3,16 @@ import { Plus, X, UploadCloud, Edit, Trash2, Clipboard } from "lucide-react";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const Admin = () => {
+
+  type Project = {
+    name: string;
+    description: string;
+    image: string;
+    skills: string[];
+    github: string;
+    live: string;
+  };
+
   const [projects, setProjects] = useState([]);
   const [skills, setSkills] = useState([]);
   const [resume, setResume] = useState(null);

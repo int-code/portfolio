@@ -3,6 +3,7 @@ import { ThemeProvider } from "./components/theme-provider"
 import Admin from "./pages/Admin"
 import Layout from "./components/Layout"
 import Home from "./components/Home"
+import React from "react"
 function App() {
   return (
     <Router>
@@ -17,5 +18,4 @@ function App() {
     </Router>
   )
 }
-
 export default App
