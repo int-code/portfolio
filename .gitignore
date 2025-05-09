@@ -1,4 +1,5 @@
 *__pycache__*
 */artifacts/
-*.env
+*.env*
 *faiss_index/
+backend/images/

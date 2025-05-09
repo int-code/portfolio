@@ -12,6 +12,9 @@ from pydantic import BaseModel
 import markdown
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 
+from routes.projects import projectRouter
+from routes.skills import skillRouter
+
 # Sync version of the lifespan function
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,14 +40,13 @@ async def add_session_id(request: Request, call_next):
     if not session_id:
         session_id = str(uuid.uuid4()).replace("-", "")[:15]  # generate a new session ID
         print(session_id)
+        response = await call_next(request)
         response.set_cookie(
             key="session_id",
             value=session_id,
             httponly=True,
             max_age=3600 
         )
-        response = await call_next(request)
-        
         # Set cookie to expire in 30 minutes (1800 seconds)
         
         return response
@@ -58,16 +60,8 @@ async def add_session_id(request: Request, call_next):
 def root():
     return {"message": "Hello World"}
 
-
-@app.get("/projects")
-def get_details(db: Session = Depends(get_db)):
-    projects = db.query(Projects, Skills).join(ProjectSkills, Projects.id==ProjectSkills.project_id).join(Skills, ProjectSkills.skill_id == Skills.id).all()
-    details = {"projects": projects}
-    skills = db.query(Skills).order_by(Skills.rating.desc()).limit(6).all()
-    details["top_skills"] = skills
-
-    return details
-
+app.include_router(projectRouter, prefix="/projects", tags=["projects"])
+app.include_router(skillRouter, prefix="/skills", tags=["skills"])
 
 @app.post("/upload_resume")
 async def upload_resume(file: UploadFile = File(...)):
@@ -115,3 +109,4 @@ def download_file():
         filename="resume-portfolio.txt",  # name the user sees
         media_type="text/plain"
     )
+
