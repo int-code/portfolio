@@ -1,17 +1,37 @@
 // ThemeContext.tsx
 import { createContext, useContext, useEffect, useState } from "react";
+import React from "react";
 
-const ThemeContext = createContext({
+interface ThemeContextType {
+  theme: string;
+  toggleTheme: () => void;
+}
+
+interface ThemeProviderProps {
+  children: React.ReactNode;
+  defaultTheme?: "light" | "dark";
+  storageKey?: string;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
   theme: "light",
   toggleTheme: () => {},
 });
 
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const [theme, setTheme] = useState("light");
+export const ThemeProvider = ({
+  children,
+  defaultTheme = "light",
+  storageKey = "theme",
+}: ThemeProviderProps) => {
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem(storageKey);
+    return stored === "dark" || stored === "light" ? stored : defaultTheme;
+  });
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
+    localStorage.setItem(storageKey, theme);
+  }, [theme, storageKey]);
 
   const toggleTheme = () =>
     setTheme((prev) => (prev === "light" ? "dark" : "light"));
@@ -24,4 +44,3 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const useTheme = () => useContext(ThemeContext);
-
