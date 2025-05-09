@@ -3,6 +3,7 @@ import uuid
 import traceback
 from fastapi import FastAPI, Depends, File, Request, UploadFile, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from db import Base, engine, get_db
 from models import Projects, Skills, ProjectSkills, Chat
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.mount("/static", StaticFiles(directory="images"), name="images")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://pubali.dev"],  # or ["*"] for all
