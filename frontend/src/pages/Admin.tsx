@@ -1,50 +1,96 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Plus, X, UploadCloud, Edit, Trash2, Clipboard } from "lucide-react";
+import ErrorBadge from "../components/ui/ErrorBadge";
 
 const apiUrl = import.meta.env.VITE_API_URL;
 const Admin = () => {
-
   type Project = {
+    id: number;
     name: string;
     description: string;
     image: string;
     skills: string[];
-    github: string;
-    live: string;
+    github_link: string;
+    demo_link: string;
   };
 
-  const [projects, setProjects] = useState([]);
-  const [skills, setSkills] = useState([]);
-  const [resume, setResume] = useState(null);
+  type Skill = {
+    id: number;
+    name: string;
+    rating: number;
+  };
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [resume, setResume] = useState<File | null>(null);
   const [activeTab, setActiveTab] = useState("projects");
   const [newProjectVisible, setNewProjectVisible] = useState(false);
   const [newSkillVisible, setNewSkillVisible] = useState(false);
-
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const addProject = async (e) => {
     e.preventDefault();
     const form = e.target;
 
-     const response = await fetch()
-    const newProject = {
-      image: form.image.files[0],
-      title: form.title.value,
-      description: form.description.value,
-      skills: form.skills.value.split(",").map(s => s.trim())
+    const response = await fetch(apiUrl+"/projects", {
+      method: "POST",
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      body: new FormData(form)
+     });
+    if (!response.ok) {
+      setErrorMessage(`Error uploading image. Please try again`);
+      return;
+    }
+    const data = await response.json();
+    const newProject: Project = {
+      id: data.id,
+      image: data.image,
+      name: data.name,
+      description: data.description,
+      skills: data.skills.split(",").map((skill) => skill.trim()),
+      github_link: data.github_link,
+      demo_link: data.demo_link,
     };
     setProjects([...projects, newProject]);
     form.reset();
     setNewProjectVisible(false);
+    setErrorMessage(null);
   };
 
-  const addSkill = (e) => {
+  const addSkill = async (e) => {
     e.preventDefault();
     const form = e.target;
-    setSkills([...skills, {
-      name: form.skill.value,
-      proficiency: form.proficiency.value
-    }]);
-    form.reset();
-    setNewSkillVisible(false);
+    try{
+      const response = await fetch(apiUrl+"/skills", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.skill.value,
+          rating: parseInt(form.proficiency.value),
+        }),
+      });
+      if (!response.ok) {
+        setErrorMessage(`Error uploading skill. Please try again`);
+        return;
+      }
+      const data = await response.json();
+
+
+      setSkills([...skills, {
+        id: data.id,
+        name: form.skill.value,
+        rating: form.proficiency.value
+      }]);
+      form.reset();
+      setNewSkillVisible(false);
+    }
+    catch{
+      setErrorMessage(`Error uploading skill. Please try again`);
+      return;
+    }
   };
 
   const uploadResume = (e) => {
@@ -72,9 +118,35 @@ const Admin = () => {
     return "bg-gray-500";
   };
 
+  useEffect(() => {
+    const fetchProjects = async () => {
+      const response = await fetch(apiUrl+"/projects");
+      const data = await response.json();
+      setProjects(data);
+    };
+    
+    const fetchSkills = async () => {
+      const response = await fetch(apiUrl+"/skills");
+      const data = await response.json();
+      console.log(data.skills);
+      setSkills(data.skills);
+    };
+
+    fetchProjects();
+    fetchSkills();
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-slate-900 text-gray-100">
       {/* Header */}
+
+      {errorMessage && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50">
+          <ErrorBadge autoClose={5000} onClose={() => setErrorMessage(null)}>
+            {errorMessage}
+          </ErrorBadge>
+        </div>
+      )}
       <header className="bg-slate-800/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-30">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-cyan-400">Portfolio Admin</h1>
@@ -154,7 +226,7 @@ const Admin = () => {
                         <input 
                           name="image" 
                           type="file" 
-                          required 
+                          required
                           className="w-full text-sm text-gray-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-sm file:bg-indigo-600 file:text-white hover:file:bg-indigo-500" 
                         />
                       </div>
@@ -208,8 +280,8 @@ const Admin = () => {
                   <div key={idx} className="bg-slate-800 rounded-xl overflow-hidden border border-slate-700/50 shadow-lg group hover:shadow-indigo-900/20 transition-all duration-300">
                     <div className="relative overflow-hidden">
                       <img 
-                        src={URL.createObjectURL(proj.image)} 
-                        alt={proj.title} 
+                        src={proj.image} 
+                        alt={proj.name} 
                         className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-105" 
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-end p-3">
@@ -227,7 +299,7 @@ const Admin = () => {
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="text-lg font-semibold">{proj.title}</h3>
+                      <h3 className="text-lg font-semibold">{proj.name}</h3>
                       <p className="text-gray-400 text-sm mt-1 line-clamp-2">{proj.description}</p>
                       
                       <div className="flex flex-wrap gap-1.5 mt-3">
@@ -305,17 +377,20 @@ const Admin = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1 text-gray-400">Proficiency Level</label>
-                      <select
+                      <input
+                        type="range"
                         name="proficiency"
+                        min="1"
+                        max="10"
                         required
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                      >
-                        <option value="">Select level</option>
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                        <option value="Expert">Expert</option>
-                      </select>
+                        onInput={(e) => {
+                          const value = e.target.value;
+                          const label = document.getElementById("proficiency-label");
+                          if (label) label.textContent = `Level: ${value}`;
+                        }}
+                      />
+                      <span id="proficiency-label" className="block text-sm text-gray-400 mt-2">Level: 5</span>
                     </div>
                   </div>
                   
@@ -344,12 +419,12 @@ const Admin = () => {
                 {skills.map((skill, idx) => (
                   <div key={idx} className="bg-slate-800 rounded-xl border border-slate-700/50 shadow-md p-4 flex items-center justify-between group hover:border-indigo-500/30 transition-all">
                     <div className="flex items-center gap-3">
-                      <div className={`${getProficiencyColor(skill.proficiency)} h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold`}>
+                      <div className={`${getProficiencyColor(skill.rating)} h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold`}>
                         {skill.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <h3 className="font-medium">{skill.name}</h3>
-                        <span className="text-xs text-gray-400">{skill.proficiency}</span>
+                        <span className="text-xs text-gray-400">{skill.rating}</span>
                       </div>
                     </div>
                     <button 

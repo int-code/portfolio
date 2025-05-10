@@ -4,6 +4,7 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import { Button } from "./ui/button"
 import { ExternalLink, Github } from "lucide-react"
+import React from "react"
 
 export default function Projects() {
   const [activeFilter, setActiveFilter] = useState("all")
